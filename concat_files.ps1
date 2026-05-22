@@ -34,7 +34,7 @@ $extensoesBinarias = @(
     '.mp3', '.mp4', '.avi', '.mkv', '.wav',
     '.ttf', '.otf', '.woff', '.woff2', '.eot',
     '.class', '.jar', '.pyc', '.pyo',
-    '.db', '.sqlite', '.mdb'
+    '.db', '.sqlite', '.mdb', '.parquet'
 )
 
 # Função para verificar se um arquivo é binário
@@ -76,29 +76,70 @@ $arquivosNaoEncontrados = 0
 
 Get-Content ".gitignore" | ForEach-Object {
     $line = $_.Trim()
-    
+
     if ($line -and $line[0] -ne '#') {
         if ($line[0] -eq '!') {
             $filepath = $line.Substring(1)
-            
-            # Ignorar diretórios
-            if ($filepath -notmatch '/$') {
+
+            # Ignorar diretórios (terminados com /)
+            if ($filepath -match '/$') { return }
+
+            $hasWildcard = ($filepath -match '[\*\?]')
+
+            if (-not $hasWildcard) {
+                # ===== caso arquivo único (sem curinga) =====
                 if (Test-Path $filepath) {
-                    # Verificar se é arquivo binário
                     if (Test-IsBinaryFile $filepath) {
-                        Write-Host "IGNORADO (binario): $filepath" -ForegroundColor Yellow
+                        Write-Host "IGNORADO (binario): $filepath"
                         $arquivosIgnorados++
-                    }
-                    else {
-                        Write-Host "Concatenando: $filepath" -ForegroundColor Green
+                    } else {
+                        Write-Host "Concatenando: $filepath"
                         "===== INICIO: $filepath =====" | Out-File -Append -Encoding UTF8 $output
                         Get-Content -Path $filepath -Raw -Encoding UTF8 | Out-File -Append -Encoding UTF8 $output
                         "`r`n===== FIM: $filepath =====`r`n" | Out-File -Append -Encoding UTF8 $output
                         $arquivosProcessados++
                     }
+                } else {
+                    Write-Host "AVISO: Arquivo nao encontrado - $filepath"
+                    $arquivosNaoEncontrados++
                 }
-                else {
-                    Write-Host "AVISO: Arquivo nao encontrado - $filepath" -ForegroundColor Red
+            }
+            else {
+                # ===== caso com curinga (ex.: dados/*.xlsx) =====
+                $dir  = Split-Path $filepath -Parent
+                $leaf = Split-Path $filepath -Leaf
+
+                # CORREÇÃO: linha que estava incompleta
+                if ([string]::IsNullOrEmpty($dir)) {
+                    # Se não houver diretório (ex.: "*.txt" sem caminho), assume o diretório atual
+                    $dir = "."
+                }
+
+                if (Test-Path $dir) {
+                    $matches = Get-ChildItem -Path $dir -Filter $leaf -File -ErrorAction SilentlyContinue
+
+                    if (-not $matches -or $matches.Count -eq 0) {
+                        Write-Host "AVISO: Nenhum arquivo encontrado para - $filepath" -ForegroundColor Red
+                        $arquivosNaoEncontrados++
+                    }
+                    else {
+                        foreach ($f in $matches) {
+                            $relative = $f.FullName
+
+                            if (Test-IsBinaryFile $relative) {
+                                Write-Host "IGNORADO (binario): $relative" -ForegroundColor Yellow
+                                $arquivosIgnorados++
+                            } else {
+                                Write-Host "Concatenando: $relative"
+                                "===== INICIO: $relative =====" | Out-File -Append -Encoding UTF8 $output
+                                Get-Content -Path $relative -Raw -Encoding UTF8 | Out-File -Append -Encoding UTF8 $output
+                                "`r`n===== FIM: $relative =====`r`n" | Out-File -Append -Encoding UTF8 $output
+                                $arquivosProcessados++
+                            }
+                        }
+                    }
+                } else {
+                    Write-Host "AVISO: Diretorio nao encontrado - $dir (da regra $filepath)" -ForegroundColor Red
                     $arquivosNaoEncontrados++
                 }
             }
