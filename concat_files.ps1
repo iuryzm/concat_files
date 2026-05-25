@@ -5,8 +5,8 @@ Write-Host ""
 Write-Host "O QUE ESTE PROGRAMA FAZ:" -ForegroundColor Yellow
 Write-Host "  - Le o arquivo .gitignore" -ForegroundColor White
 Write-Host "  - Identifica arquivos marcados com '!' (nao ignorados)" -ForegroundColor White
-Write-Host "  - Concatena o conteudo desses arquivos em concat_files.txt" -ForegroundColor White
-Write-Host "  - Adiciona marcadores de inicio/fim para cada arquivo" -ForegroundColor White
+Write-Host "  - Concatena o conteudo desses arquivos em concat_files.md" -ForegroundColor White
+Write-Host "  - Adiciona cada arquivo em uma secao com blocos de codigo" -ForegroundColor White
 Write-Host "  - Ignora arquivos binarios (imagens, executaveis, etc)" -ForegroundColor White
 Write-Host ""
 Write-Host "RECURSOS IMPLEMENTADOS:" -ForegroundColor Yellow
@@ -14,7 +14,7 @@ Write-Host "  [X] Ignora linhas de comentario (iniciadas com #)" -ForegroundColo
 Write-Host "  [X] Ignora linhas vazias" -ForegroundColor Green
 Write-Host "  [X] Ignora diretorios (terminados com /)" -ForegroundColor Green
 Write-Host "  [X] Processa apenas arquivos marcados com !" -ForegroundColor Green
-Write-Host "  [X] Adiciona marcadores com caminho relativo do arquivo" -ForegroundColor Green
+Write-Host "  [X] Cria secoes em Markdown com blocos de codigo" -ForegroundColor Green
 Write-Host "  [X] Adiciona linha em branco apos cada arquivo" -ForegroundColor Green
 Write-Host "  [X] Exibe avisos para arquivos nao encontrados" -ForegroundColor Green
 Write-Host "  [X] Ignora arquivos binarios automaticamente" -ForegroundColor Green
@@ -23,7 +23,7 @@ Write-Host "Iniciando processamento..." -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
-$output = "concat_files.txt"
+$output = "concat_files.md"
 
 # Lista de extensões binárias conhecidas
 $extensoesBinarias = @(
@@ -94,9 +94,10 @@ Get-Content ".gitignore" | ForEach-Object {
                         $arquivosIgnorados++
                     } else {
                         Write-Host "Concatenando: $filepath"
-                        "===== INICIO: $filepath =====" | Out-File -Append -Encoding UTF8 $output
+                        $ext = [System.IO.Path]::GetExtension($filepath).TrimStart('.')
+                        "### $filepath`r`n" + '````' + $ext | Out-File -Append -Encoding UTF8 $output
                         Get-Content -Path $filepath -Raw -Encoding UTF8 | Out-File -Append -Encoding UTF8 $output
-                        "`r`n===== FIM: $filepath =====`r`n" | Out-File -Append -Encoding UTF8 $output
+                        "`r`n" + '````' + "`r`n" | Out-File -Append -Encoding UTF8 $output
                         $arquivosProcessados++
                     }
                 } else {
@@ -131,9 +132,10 @@ Get-Content ".gitignore" | ForEach-Object {
                                 $arquivosIgnorados++
                             } else {
                                 Write-Host "Concatenando: $relative"
-                                "===== INICIO: $relative =====" | Out-File -Append -Encoding UTF8 $output
+                                $ext = [System.IO.Path]::GetExtension($relative).TrimStart('.')
+                                "### $relative`r`n" + '````' + $ext | Out-File -Append -Encoding UTF8 $output
                                 Get-Content -Path $relative -Raw -Encoding UTF8 | Out-File -Append -Encoding UTF8 $output
-                                "`r`n===== FIM: $relative =====`r`n" | Out-File -Append -Encoding UTF8 $output
+                                "`r`n" + '````' + "`r`n" | Out-File -Append -Encoding UTF8 $output
                                 $arquivosProcessados++
                             }
                         }
