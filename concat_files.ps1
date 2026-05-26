@@ -18,6 +18,7 @@ Write-Host "  [X] Cria secoes em Markdown com blocos de codigo" -ForegroundColor
 Write-Host "  [X] Adiciona linha em branco apos cada arquivo" -ForegroundColor Green
 Write-Host "  [X] Exibe avisos para arquivos nao encontrados" -ForegroundColor Green
 Write-Host "  [X] Ignora arquivos binarios automaticamente" -ForegroundColor Green
+Write-Host "  [X] Utiliza caminhos relativos no titulo das secoes" -ForegroundColor Green
 Write-Host ""
 Write-Host "Iniciando processamento..." -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
@@ -95,9 +96,9 @@ Get-Content ".gitignore" | ForEach-Object {
                     } else {
                         Write-Host "Concatenando: $filepath"
                         $ext = [System.IO.Path]::GetExtension($filepath).TrimStart('.')
-                        "### $filepath`r`n" + '````' + $ext | Out-File -Append -Encoding UTF8 $output
+                        "### $filepath`r`n" + '```' + $ext | Out-File -Append -Encoding UTF8 $output
                         Get-Content -Path $filepath -Raw -Encoding UTF8 | Out-File -Append -Encoding UTF8 $output
-                        "`r`n" + '````' + "`r`n" | Out-File -Append -Encoding UTF8 $output
+                        "`r`n" + '```' + "`r`n" | Out-File -Append -Encoding UTF8 $output
                         $arquivosProcessados++
                     }
                 } else {
@@ -110,7 +111,6 @@ Get-Content ".gitignore" | ForEach-Object {
                 $dir  = Split-Path $filepath -Parent
                 $leaf = Split-Path $filepath -Leaf
 
-                # CORREÇÃO: linha que estava incompleta
                 if ([string]::IsNullOrEmpty($dir)) {
                     # Se não houver diretório (ex.: "*.txt" sem caminho), assume o diretório atual
                     $dir = "."
@@ -125,17 +125,22 @@ Get-Content ".gitignore" | ForEach-Object {
                     }
                     else {
                         foreach ($f in $matches) {
-                            $relative = $f.FullName
+                            $absolutePath = $f.FullName
+                            
+                            # Transforma em caminho relativo usando o próprio PowerShell
+                            $relativePath = Resolve-Path -Path $absolutePath -Relative
+                            # Remove o ".\" do começo e converte as barras para o padrão "/"
+                            $relativePathMarkdown = $relativePath -replace '^\.\\', '' -replace '\\', '/'
 
-                            if (Test-IsBinaryFile $relative) {
-                                Write-Host "IGNORADO (binario): $relative" -ForegroundColor Yellow
+                            if (Test-IsBinaryFile $absolutePath) {
+                                Write-Host "IGNORADO (binario): $relativePathMarkdown" -ForegroundColor Yellow
                                 $arquivosIgnorados++
                             } else {
-                                Write-Host "Concatenando: $relative"
-                                $ext = [System.IO.Path]::GetExtension($relative).TrimStart('.')
-                                "### $relative`r`n" + '````' + $ext | Out-File -Append -Encoding UTF8 $output
-                                Get-Content -Path $relative -Raw -Encoding UTF8 | Out-File -Append -Encoding UTF8 $output
-                                "`r`n" + '````' + "`r`n" | Out-File -Append -Encoding UTF8 $output
+                                Write-Host "Concatenando: $relativePathMarkdown"
+                                $ext = [System.IO.Path]::GetExtension($absolutePath).TrimStart('.')
+                                "### $relativePathMarkdown`r`n" + '```' + $ext | Out-File -Append -Encoding UTF8 $output
+                                Get-Content -Path $absolutePath -Raw -Encoding UTF8 | Out-File -Append -Encoding UTF8 $output
+                                "`r`n" + '```' + "`r`n" | Out-File -Append -Encoding UTF8 $output
                                 $arquivosProcessados++
                             }
                         }
